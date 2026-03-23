@@ -1,0 +1,21 @@
+[package]
+name = "search_tantivy_nif"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "search_tantivy_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.37.3"
+tantivy = "0.25"
+thiserror = "2.0"
+parking_lot = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
