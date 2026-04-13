@@ -144,7 +144,7 @@ defmodule SearchTantivy.Schema do
   @spec field_names(reference()) :: [atom()]
   def field_names(index_ref) when is_reference(index_ref) do
     case SearchTantivy.Native.schema_get_field_names(index_ref) do
-      {:ok, names} -> Enum.map(names, &String.to_atom/1)
+      {:ok, names} -> Enum.map(names, &String.to_existing_atom/1)
       {:error, _} -> []
     end
   end
@@ -161,7 +161,7 @@ defmodule SearchTantivy.Schema do
   @spec field_type(reference(), atom()) :: {:ok, field_type()} | {:error, String.t()}
   def field_type(index_ref, field) when is_reference(index_ref) and is_atom(field) do
     case SearchTantivy.Native.schema_get_field_type(index_ref, Atom.to_string(field)) do
-      {:ok, type_string} -> {:ok, String.to_atom(type_string)}
+      {:ok, type_string} -> {:ok, String.to_existing_atom(type_string)}
       {:error, _} = error -> error
     end
   end

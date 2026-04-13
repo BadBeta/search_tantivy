@@ -85,6 +85,16 @@ fn tokenizer_register(
     }
 }
 
+/// Build a standard stemming analyzer: SimpleTokenizer → RemoveLong(40) → LowerCaser → Stemmer.
+fn stemming_analyzer(language: tantivy::tokenizer::Language) -> tantivy::tokenizer::TextAnalyzer {
+    use tantivy::tokenizer::*;
+    TextAnalyzer::builder(SimpleTokenizer::default())
+        .filter(RemoveLongFilter::limit(40))
+        .filter(LowerCaser)
+        .filter(Stemmer::new(language))
+        .build()
+}
+
 fn register_tokenizer_internal(
     index_res: &crate::index::IndexResource,
     tokenizer_name: &str,
@@ -98,132 +108,24 @@ fn register_tokenizer_internal(
     let analyzer: Option<TextAnalyzer> = match tokenizer_name {
         "default" | "raw" => None, // Already registered
         "whitespace" => Some(TextAnalyzer::builder(WhitespaceTokenizer::default()).build()),
-        "en_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::English))
-                .build(),
-        ),
-        "fr_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::French))
-                .build(),
-        ),
-        "de_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::German))
-                .build(),
-        ),
-        "es_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Spanish))
-                .build(),
-        ),
-        "pt_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Portuguese))
-                .build(),
-        ),
-        "it_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Italian))
-                .build(),
-        ),
-        "nl_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Dutch))
-                .build(),
-        ),
-        "sv_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Swedish))
-                .build(),
-        ),
-        "no_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Norwegian))
-                .build(),
-        ),
-        "da_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Danish))
-                .build(),
-        ),
-        "fi_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Finnish))
-                .build(),
-        ),
-        "hu_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Hungarian))
-                .build(),
-        ),
-        "ro_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Romanian))
-                .build(),
-        ),
-        "ru_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Russian))
-                .build(),
-        ),
-        "tr_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Turkish))
-                .build(),
-        ),
-        "ar_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Arabic))
-                .build(),
-        ),
-        "ta_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Tamil))
-                .build(),
-        ),
-        "el_stem" => Some(
-            TextAnalyzer::builder(SimpleTokenizer::default())
-                .filter(RemoveLongFilter::limit(40))
-                .filter(LowerCaser)
-                .filter(Stemmer::new(Language::Greek))
-                .build(),
-        ),
+        "en_stem" => Some(stemming_analyzer(Language::English)),
+        "fr_stem" => Some(stemming_analyzer(Language::French)),
+        "de_stem" => Some(stemming_analyzer(Language::German)),
+        "es_stem" => Some(stemming_analyzer(Language::Spanish)),
+        "pt_stem" => Some(stemming_analyzer(Language::Portuguese)),
+        "it_stem" => Some(stemming_analyzer(Language::Italian)),
+        "nl_stem" => Some(stemming_analyzer(Language::Dutch)),
+        "sv_stem" => Some(stemming_analyzer(Language::Swedish)),
+        "no_stem" => Some(stemming_analyzer(Language::Norwegian)),
+        "da_stem" => Some(stemming_analyzer(Language::Danish)),
+        "fi_stem" => Some(stemming_analyzer(Language::Finnish)),
+        "hu_stem" => Some(stemming_analyzer(Language::Hungarian)),
+        "ro_stem" => Some(stemming_analyzer(Language::Romanian)),
+        "ru_stem" => Some(stemming_analyzer(Language::Russian)),
+        "tr_stem" => Some(stemming_analyzer(Language::Turkish)),
+        "ar_stem" => Some(stemming_analyzer(Language::Arabic)),
+        "ta_stem" => Some(stemming_analyzer(Language::Tamil)),
+        "el_stem" => Some(stemming_analyzer(Language::Greek)),
         other => {
             return Err(TantivyNifError::Other(format!(
                 "unknown tokenizer: '{}'. Available: default, raw, whitespace, \
