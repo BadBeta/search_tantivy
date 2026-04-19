@@ -92,7 +92,8 @@ defmodule SearchTantivy.Aggregation do
 
   """
   @spec aggregate(atom(), map(), keyword()) :: {:ok, map()} | {:error, term()}
-  def aggregate(index_name, aggregations, opts \\ []) when is_atom(index_name) and is_map(aggregations) do
+  def aggregate(index_name, aggregations, opts \\ [])
+      when is_atom(index_name) and is_map(aggregations) do
     via = SearchTantivy.IndexRegistry.via(index_name)
 
     with {:ok, reader} <- SearchTantivy.Index.reader(via),
@@ -180,15 +181,9 @@ defmodule SearchTantivy.Aggregation do
   """
   @spec histogram(atom(), number(), keyword()) :: map()
   def histogram(field, interval, opts \\ []) do
-    hist = %{"field" => to_string(field), "interval" => interval}
-
-    hist =
-      case Keyword.get(opts, :min_doc_count) do
-        nil -> hist
-        count -> Map.put(hist, "min_doc_count", count)
-      end
-
-    %{"histogram" => hist}
+    %{"field" => to_string(field), "interval" => interval}
+    |> maybe_add_min_doc_count(Keyword.get(opts, :min_doc_count))
+    |> then(&%{"histogram" => &1})
     |> maybe_add_sub_aggs(Keyword.get(opts, :aggs))
   end
 
@@ -295,4 +290,7 @@ defmodule SearchTantivy.Aggregation do
 
   defp maybe_add_sub_aggs(agg, nil), do: agg
   defp maybe_add_sub_aggs(agg, sub_aggs) when is_map(sub_aggs), do: Map.put(agg, "aggs", sub_aggs)
+
+  defp maybe_add_min_doc_count(hist, nil), do: hist
+  defp maybe_add_min_doc_count(hist, count), do: Map.put(hist, "min_doc_count", count)
 end

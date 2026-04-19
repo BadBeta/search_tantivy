@@ -168,19 +168,7 @@ defmodule SearchTantivy.Schema do
 
   # --- Private ---
 
-  defp normalize_fields(fields) do
-    fields
-    |> Enum.reduce_while([], fn field, acc ->
-      case normalize_field(field) do
-        {:ok, normalized} -> {:cont, [normalized | acc]}
-        {:error, _} = error -> {:halt, error}
-      end
-    end)
-    |> case do
-      {:error, _} = error -> error
-      normalized when is_list(normalized) -> {:ok, Enum.reverse(normalized)}
-    end
-  end
+  defp normalize_fields(fields), do: collect_results(fields, &normalize_field/1)
 
   defp normalize_field({name, type}) when is_atom(name) and type in @valid_types do
     {:ok, {Atom.to_string(name), Atom.to_string(type), []}}
@@ -188,13 +176,9 @@ defmodule SearchTantivy.Schema do
 
   defp normalize_field({name, type, opts})
        when is_atom(name) and type in @valid_types and is_list(opts) do
-    normalized_opts =
-      Enum.map(opts, fn
-        {k, v} when is_atom(k) and is_boolean(v) -> {Atom.to_string(k), to_string(v)}
-        {k, v} when is_atom(k) and is_atom(v) -> {Atom.to_string(k), Atom.to_string(v)}
-      end)
-
-    {:ok, {Atom.to_string(name), Atom.to_string(type), normalized_opts}}
+    with {:ok, normalized_opts} <- normalize_opts(opts) do
+      {:ok, {Atom.to_string(name), Atom.to_string(type), normalized_opts}}
+    end
   end
 
   defp normalize_field({_name, type}) do
@@ -208,5 +192,30 @@ defmodule SearchTantivy.Schema do
   defp normalize_field(invalid) do
     {:error,
      "invalid field definition: #{inspect(invalid)}. Expected {name, type} or {name, type, opts}"}
+  end
+
+  defp normalize_opts(opts), do: collect_results(opts, &normalize_opt/1)
+
+  defp normalize_opt({k, v}) when is_atom(k) and is_boolean(v),
+    do: {:ok, {Atom.to_string(k), to_string(v)}}
+
+  defp normalize_opt({k, v}) when is_atom(k) and is_atom(v),
+    do: {:ok, {Atom.to_string(k), Atom.to_string(v)}}
+
+  defp normalize_opt(invalid) do
+    {:error, "invalid field option: #{inspect(invalid)}. Expected {atom_key, atom_or_boolean}"}
+  end
+
+  defp collect_results(items, fun) do
+    Enum.reduce_while(items, {:ok, []}, fn item, {:ok, acc} ->
+      case fun.(item) do
+        {:ok, normalized} -> {:cont, {:ok, [normalized | acc]}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, acc} -> {:ok, Enum.reverse(acc)}
+      {:error, _} = error -> error
+    end
   end
 end

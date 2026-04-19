@@ -259,10 +259,9 @@ defmodule SearchTantivy.Index do
   # --- Private ---
 
   defp do_initialize(opts) do
-    if opts[:open] do
-      do_open_index(opts)
-    else
-      do_create_index(opts)
+    case Keyword.get(opts, :open, false) do
+      true -> do_open_index(opts)
+      false -> do_create_index(opts)
     end
   end
 

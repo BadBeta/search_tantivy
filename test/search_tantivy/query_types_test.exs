@@ -14,10 +14,30 @@ defmodule SearchTantivy.QueryTypesTest do
     {:ok, _pid} = SearchTantivy.create_index(index_name, schema)
 
     articles = [
-      %{title: "Quick Brown Fox", body: "The quick brown fox jumps", slug: "quick-fox", category: "animals"},
-      %{title: "Elixir Programming", body: "Learn elixir programming today", slug: "elixir-prog", category: "tech"},
-      %{title: "Elixir Phoenix Guide", body: "Build web apps with phoenix", slug: "elixir-phoenix", category: "tech"},
-      %{title: "Rust Systems", body: "Systems programming with rust", slug: "rust-systems", category: "tech"}
+      %{
+        title: "Quick Brown Fox",
+        body: "The quick brown fox jumps",
+        slug: "quick-fox",
+        category: "animals"
+      },
+      %{
+        title: "Elixir Programming",
+        body: "Learn elixir programming today",
+        slug: "elixir-prog",
+        category: "tech"
+      },
+      %{
+        title: "Elixir Phoenix Guide",
+        body: "Build web apps with phoenix",
+        slug: "elixir-phoenix",
+        category: "tech"
+      },
+      %{
+        title: "Rust Systems",
+        body: "Systems programming with rust",
+        slug: "rust-systems",
+        category: "tech"
+      }
     ]
 
     :ok = SearchTantivy.Ecto.index_all(index_name, articles, @search_fields)

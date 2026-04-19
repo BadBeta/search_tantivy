@@ -91,21 +91,16 @@ defmodule SearchTantivy.Searcher do
   end
 
   defp execute_search(reader_ref, query_ref, opts) do
-    case opts[:highlight] do
-      [] ->
-        search_without_snippets(reader_ref, query_ref, opts[:limit], opts[:offset])
+    dispatch_search(reader_ref, query_ref, opts[:limit], opts[:offset], opts[:highlight])
+  end
 
-      highlight_fields ->
-        snippet_field_strings = Enum.map(highlight_fields, &Atom.to_string/1)
+  defp dispatch_search(reader_ref, query_ref, limit, offset, []) do
+    search_without_snippets(reader_ref, query_ref, limit, offset)
+  end
 
-        search_with_snippets(
-          reader_ref,
-          query_ref,
-          opts[:limit],
-          opts[:offset],
-          snippet_field_strings
-        )
-    end
+  defp dispatch_search(reader_ref, query_ref, limit, offset, fields) when is_list(fields) do
+    field_strings = Enum.map(fields, &Atom.to_string/1)
+    search_with_snippets(reader_ref, query_ref, limit, offset, field_strings)
   end
 
   defp search_without_snippets(reader_ref, query_ref, limit, offset) do
@@ -151,16 +146,21 @@ defmodule SearchTantivy.Searcher do
   defp resolve(index), do: index
 
   defp build_boolean_from_clauses(index_ref, clauses, fields) do
-    clauses
-    |> Enum.reduce_while([], fn {occur, query_string}, acc ->
+    with {:ok, parsed} <- parse_clauses(index_ref, clauses, fields) do
+      SearchTantivy.Query.boolean_query(parsed)
+    end
+  end
+
+  defp parse_clauses(index_ref, clauses, fields) do
+    Enum.reduce_while(clauses, {:ok, []}, fn {occur, query_string}, {:ok, acc} ->
       case parse_clause_value(index_ref, query_string, fields) do
-        {:ok, query_ref} -> {:cont, [{occur, query_ref} | acc]}
+        {:ok, query_ref} -> {:cont, {:ok, [{occur, query_ref} | acc]}}
         {:error, _} = error -> {:halt, error}
       end
     end)
     |> case do
+      {:ok, acc} -> {:ok, Enum.reverse(acc)}
       {:error, _} = error -> error
-      parsed when is_list(parsed) -> SearchTantivy.Query.boolean_query(Enum.reverse(parsed))
     end
   end
 
