@@ -58,10 +58,13 @@ graph TB
 
 | Module | Role | Pure? | Description |
 |--------|------|-------|-------------|
-| `SearchTantivy` | Facade | - | Top-level API, delegates to Index and Searcher |
+| `SearchTantivy` | Facade | - | Top-level API, delegates to Index, Searcher, Aggregation |
 | `SearchTantivy.Schema` | Builder | Yes | Defines index structure (field types, options) |
+| `SearchTantivy.Document` | Builder | Yes | Build documents from Elixir maps |
 | `SearchTantivy.Query` | Builder | Yes | Composable query construction |
 | `SearchTantivy.Searcher` | Executor | Yes | Stateless search execution |
+| `SearchTantivy.Aggregation` | Builder + Executor | Yes | Elasticsearch-style aggregations (terms, histogram, stats) |
+| `SearchTantivy.Ecto` | Integration | Yes | Ecto schema → document helpers |
 | `SearchTantivy.Tokenizer` | Config | - | Register built-in tokenizers |
 | `SearchTantivy.Index` | GenServer | No | Index lifecycle (write, commit, read) |
 | `SearchTantivy.Application` | Supervisor | No | Optional supervision tree |
@@ -309,6 +312,21 @@ graph LR
   {:should, body_query},      # Optional, boosts score
   {:must_not, spam_query}     # Excluded
 ])
+
+# Exact phrase match — words must appear in order
+{:ok, query} = SearchTantivy.Query.phrase(index_ref, :title, ["hello", "world"])
+
+# Autocomplete / search-as-you-type
+{:ok, query} = SearchTantivy.Query.phrase_prefix(index_ref, :title, ["quick", "bro"])
+
+# Regex pattern match (Rust regex syntax)
+{:ok, query} = SearchTantivy.Query.regex(index_ref, :slug, "elixir-.*")
+
+# Field has any value
+{:ok, query} = SearchTantivy.Query.exists(index_ref, :category)
+
+# Fuzzy (typo-tolerant) term match — Levenshtein distance 0-2
+{:ok, query} = SearchTantivy.Query.fuzzy_term(index_ref, :title, "hrose", distance: 1)
 ```
 
 **LLM guidance — query construction:**
@@ -367,6 +385,139 @@ Stateless search execution. Each call gets a fresh reader snapshot.
 - Highlights contain HTML `<b>` tags around matching terms
 - Pagination: `offset: (page - 1) * per_page, limit: per_page`
 - Empty results return `{:ok, []}`, not an error
+
+### SearchTantivy.Aggregation
+
+Elasticsearch-compatible aggregations for statistics, histograms, and groupings over search results. Fields used in aggregations must be configured as `fast: true` in the schema.
+
+#### Aggregation Types
+
+| Category | Function | Purpose |
+|----------|----------|---------|
+| Bucket | `terms/2` | Group by unique field values |
+| Bucket | `histogram/3` | Fixed-width numeric buckets |
+| Bucket | `range/3` | Custom value ranges |
+| Bucket | `date_histogram/3` | Time-interval buckets |
+| Metric | `avg/1`, `min/1`, `max/1`, `sum/1`, `count/1` | Single-value statistics |
+| Metric | `stats/1` | Count + min + max + avg + sum |
+| Metric | `percentiles/2` | Value distribution percentiles |
+
+#### Functions
+
+```elixir
+alias SearchTantivy.Aggregation
+
+# Aggregate all documents
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "by_category" => Aggregation.terms(:category, size: 10),
+  "avg_price" => Aggregation.avg(:price)
+})
+
+# Aggregate only documents matching a query filter
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "price_stats" => Aggregation.stats(:price)
+}, query: "laptop")
+
+# Nested aggregations — histogram with per-bucket metrics
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "price_hist" => Aggregation.histogram(:price, 50.0,
+    aggs: %{"avg_rating" => Aggregation.avg(:rating)}
+  )
+})
+
+# Custom ranges
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "price_ranges" => Aggregation.range(:price, [
+    %{to: 100.0},
+    %{from: 100.0, to: 500.0},
+    %{from: 500.0}
+  ])
+})
+```
+
+**LLM guidance — aggregations:**
+- Fields used in aggregations MUST have `fast: true` set in the schema — otherwise aggregation fails
+- Aggregation keys are strings (`"by_category"`), not atoms — they appear unchanged in the result JSON
+- `terms/2` defaults to top 10 buckets — pass `size: N` for more
+- Intervals for `date_histogram` use tantivy's fixed-interval syntax: `"1s"`, `"1m"`, `"1h"`, `"1d"`
+- Results come back as maps with the same top-level keys you provided
+
+### SearchTantivy.Ecto
+
+Helpers for integrating SearchTantivy with Ecto schemas or any plain-map data source. Pure functions — no macros, no magic.
+
+#### Field Mapping Format
+
+The same format as `SearchTantivy.Schema.build/1`:
+
+```elixir
+@search_fields [
+  {:title, :text, stored: true},
+  {:body, :text, stored: true},
+  {:slug, :string, stored: true, indexed: true}
+]
+```
+
+The field name must match both the Ecto schema field and the search index field.
+
+#### Functions
+
+```elixir
+# Index one record (record → document, add, commit)
+:ok = SearchTantivy.Ecto.index_one(:blog_posts, post, @search_fields)
+
+# Bulk index — more efficient than index_one in a loop (single commit)
+:ok = SearchTantivy.Ecto.index_all(:blog_posts, posts, @search_fields)
+
+# Delete by unique field (e.g., slug or ID), then commit
+:ok = SearchTantivy.Ecto.delete_one(:blog_posts, :slug, post.slug)
+
+# Convert record to document map (without indexing)
+doc_map = SearchTantivy.Ecto.to_document(post, @search_fields)
+
+# Convert a list
+doc_maps = SearchTantivy.Ecto.to_documents(posts, @search_fields)
+
+# Build a schema from the same mapping
+schema = SearchTantivy.Ecto.build_schema!(@search_fields)
+```
+
+#### Typical Phoenix Context Usage
+
+```elixir
+defmodule Blog do
+  @search_fields [
+    {:title, :text, stored: true},
+    {:body, :text, stored: true},
+    {:slug, :string, stored: true, indexed: true}
+  ]
+
+  def create_post(attrs) do
+    with {:ok, post} <- Repo.insert(Post.changeset(%Post{}, attrs)),
+         :ok <- SearchTantivy.Ecto.index_one(:blog_posts, post, @search_fields) do
+      {:ok, post}
+    end
+  end
+
+  def reindex_all do
+    posts = Repo.all(Post)
+    SearchTantivy.Ecto.index_all(:blog_posts, posts, @search_fields)
+  end
+
+  def delete_post(post) do
+    with {:ok, post} <- Repo.delete(post) do
+      SearchTantivy.Ecto.delete_one(:blog_posts, :slug, post.slug)
+    end
+  end
+end
+```
+
+**LLM guidance — Ecto integration:**
+- Works with any map or struct — not Ecto-specific despite the name
+- Use the same `@search_fields` module attribute for both schema creation (`build_schema!/1`) and document conversion (`to_document/2`)
+- Missing fields on the record become `nil` values (tantivy skips them)
+- `index_one/3` and `index_all/3` commit automatically — do not call `commit/1` afterward
+- Batch via `index_all/3` whenever possible — one commit is much cheaper than N commits
 
 ### SearchTantivy.Tokenizer
 

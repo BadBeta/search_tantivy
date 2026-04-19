@@ -55,8 +55,15 @@ This guide is structured for LLM code generation — rules, decision frameworks,
 | Combine multiple conditions | `Query.boolean_query/1` | Must match title AND should match body |
 | Boost one field over another | `Query.boost/2` | Title matches score 2x higher |
 | Get all documents | `Query.all_query/0` | Browse/list all indexed content |
+| Exact phrase ("hello world") | `Query.phrase/3` | `Query.phrase(ref, :title, ["hello", "world"])` |
+| Autocomplete / search-as-you-type | `Query.phrase_prefix/3` | `Query.phrase_prefix(ref, :title, ["quick", "bro"])` |
+| Pattern match (regex) | `Query.regex/3` | `Query.regex(ref, :slug, "elixir-.*")` |
+| Field has any value | `Query.exists/2` | `Query.exists(ref, :category)` |
+| Typo-tolerant term match | `Query.fuzzy_term/4` | `Query.fuzzy_term(ref, :title, "hrose", distance: 1)` |
 | Range query (price, date) | `Query.parse/3` with syntax | `Query.parse(ref, "price:[10 TO 100]")` |
 | Paginate results | `search/3` with `:limit`/`:offset` | `search(index, "q", limit: 20, offset: 40)` |
+| Aggregate stats / grouping | `SearchTantivy.aggregate/3` | `aggregate(:products, %{"avg" => Aggregation.avg(:price)})` |
+| Index from Ecto records | `SearchTantivy.Ecto.index_all/3` | `Ecto.index_all(:posts, records, @search_fields)` |
 
 ## API Quick Reference
 
@@ -174,6 +181,63 @@ schema = SearchTantivy.Schema.build!([
 
 # Or use keyword list boolean shorthand (no query building needed)
 {:ok, results} = SearchTantivy.search(index, [must: "elixir", must_not: "spam"], limit: 10)
+```
+
+### Aggregations
+
+Fields used in aggregations must have `fast: true` in the schema.
+
+```elixir
+alias SearchTantivy.Aggregation
+
+# Aggregate all documents in an index
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "by_category" => Aggregation.terms(:category, size: 10),
+  "avg_price" => Aggregation.avg(:price),
+  "price_stats" => Aggregation.stats(:price)
+})
+
+# Aggregate only documents matching a query
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "avg_price" => Aggregation.avg(:price)
+}, query: "laptop")
+
+# Nested: histogram with per-bucket average
+{:ok, result} = SearchTantivy.aggregate(:products, %{
+  "price_hist" => Aggregation.histogram(:price, 50.0,
+    aggs: %{"avg_rating" => Aggregation.avg(:rating)}
+  )
+})
+
+# Bucket builders: terms/2, histogram/3, range/3, date_histogram/3
+# Metric builders: avg/1, min/1, max/1, sum/1, count/1, stats/1, percentiles/2
+```
+
+### Ecto & Plain-Map Integration
+
+Works with Ecto schemas or any map/struct (pure functions, no macros).
+
+```elixir
+@search_fields [
+  {:title, :text, stored: true},
+  {:body, :text, stored: true},
+  {:slug, :string, stored: true, indexed: true}
+]
+
+# Build schema from the same mapping
+schema = SearchTantivy.Ecto.build_schema!(@search_fields)
+
+# Index one (converts to doc, adds, commits)
+:ok = SearchTantivy.Ecto.index_one(:posts, post, @search_fields)
+
+# Index many (single batch commit — prefer this in loops)
+:ok = SearchTantivy.Ecto.index_all(:posts, posts, @search_fields)
+
+# Delete by unique field and commit
+:ok = SearchTantivy.Ecto.delete_one(:posts, :slug, post.slug)
+
+# Convert without indexing
+doc = SearchTantivy.Ecto.to_document(post, @search_fields)
 ```
 
 ### Tokenizer Registration
@@ -522,10 +586,13 @@ end
 
 | Module | Type | Purpose |
 |--------|------|---------|
-| `SearchTantivy` | Facade | Top-level API: `create_index`, `open_index`, `search` |
+| `SearchTantivy` | Facade | Top-level API: `create_index`, `open_index`, `search`, `aggregate` |
 | `SearchTantivy.Schema` | Pure | Build field schemas from tuple lists |
-| `SearchTantivy.Query` | Pure | Compose queries: parse, term, boolean, boost, all |
+| `SearchTantivy.Document` | Pure | Build documents from Elixir maps |
+| `SearchTantivy.Query` | Pure | Compose queries: parse, term, boolean, boost, phrase, regex, fuzzy, exists |
 | `SearchTantivy.Searcher` | Pure | Execute searches (stateless, no process) |
+| `SearchTantivy.Aggregation` | Pure | Build + execute Elasticsearch-style aggregations |
+| `SearchTantivy.Ecto` | Pure | Ecto schema / map → document helpers |
 | `SearchTantivy.Index` | GenServer | Index lifecycle: add, commit, delete, reader |
 | `SearchTantivy.Tokenizer` | Pure | Register built-in tokenizers |
 | `SearchTantivy.Native` | NIF | Rust FFI boundary (internal, not for direct use) |
