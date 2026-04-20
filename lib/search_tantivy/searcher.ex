@@ -152,13 +152,15 @@ defmodule SearchTantivy.Searcher do
   end
 
   defp parse_clauses(index_ref, clauses, fields) do
-    Enum.reduce_while(clauses, {:ok, []}, fn {occur, query_string}, {:ok, acc} ->
-      case parse_clause_value(index_ref, query_string, fields) do
-        {:ok, query_ref} -> {:cont, {:ok, [{occur, query_ref} | acc]}}
-        {:error, _} = error -> {:halt, error}
-      end
-    end)
-    |> case do
+    result =
+      Enum.reduce_while(clauses, {:ok, []}, fn {occur, query_string}, {:ok, acc} ->
+        case parse_clause_value(index_ref, query_string, fields) do
+          {:ok, query_ref} -> {:cont, {:ok, [{occur, query_ref} | acc]}}
+          {:error, _} = error -> {:halt, error}
+        end
+      end)
+
+    case result do
       {:ok, acc} -> {:ok, Enum.reverse(acc)}
       {:error, _} = error -> error
     end

@@ -48,7 +48,7 @@ defmodule SearchTantivy.Document do
   def new(schema, fields) when is_reference(schema) and is_map(fields) do
     field_values =
       Enum.map(fields, fn {k, v} ->
-        {Atom.to_string(k), SearchTantivy.Value.to_string_value(v)}
+        {Atom.to_string(k), SearchTantivy.Value.to_string_value!(v)}
       end)
 
     SearchTantivy.Native.document_create(schema, field_values)

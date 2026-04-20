@@ -207,13 +207,15 @@ defmodule SearchTantivy.Schema do
   end
 
   defp collect_results(items, fun) do
-    Enum.reduce_while(items, {:ok, []}, fn item, {:ok, acc} ->
-      case fun.(item) do
-        {:ok, normalized} -> {:cont, {:ok, [normalized | acc]}}
-        {:error, _} = error -> {:halt, error}
-      end
-    end)
-    |> case do
+    result =
+      Enum.reduce_while(items, {:ok, []}, fn item, {:ok, acc} ->
+        case fun.(item) do
+          {:ok, normalized} -> {:cont, {:ok, [normalized | acc]}}
+          {:error, _} = error -> {:halt, error}
+        end
+      end)
+
+    case result do
       {:ok, acc} -> {:ok, Enum.reverse(acc)}
       {:error, _} = error -> error
     end

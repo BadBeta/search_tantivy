@@ -309,7 +309,7 @@ defmodule SearchTantivy.Index do
     Enum.reduce_while(documents, :ok, fn doc_map, :ok ->
       field_values =
         Enum.map(doc_map, fn {k, v} ->
-          {Atom.to_string(k), SearchTantivy.Value.to_string_value(v)}
+          {Atom.to_string(k), SearchTantivy.Value.to_string_value!(v)}
         end)
 
       with {:ok, doc_ref} <- SearchTantivy.Native.document_create(state.schema_ref, field_values),
