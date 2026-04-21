@@ -74,8 +74,9 @@ defmodule SearchTantivy.Searcher do
   def search(index, query_ref, opts) when is_reference(query_ref) do
     opts = Keyword.validate!(opts, @valid_opts)
 
-    with {:ok, reader_ref} <- SearchTantivy.Index.reader(index) do
-      execute_search(reader_ref, query_ref, opts)
+    case SearchTantivy.Index.reader(index) do
+      {:ok, reader_ref} -> execute_search(reader_ref, query_ref, opts)
+      {:error, _} = error -> error
     end
   end
 
@@ -104,35 +105,42 @@ defmodule SearchTantivy.Searcher do
   end
 
   defp search_without_snippets(reader_ref, query_ref, limit, offset) do
-    with {:ok, raw_results} <- SearchTantivy.Native.search(reader_ref, query_ref, limit, offset) do
-      results =
-        Enum.map(raw_results, fn {score, field_pairs} ->
-          %{score: score, doc: Map.new(field_pairs), highlights: %{}}
-        end)
+    case SearchTantivy.Native.search(reader_ref, query_ref, limit, offset) do
+      {:ok, raw_results} ->
+        results =
+          Enum.map(raw_results, fn {score, field_pairs} ->
+            %{score: score, doc: Map.new(field_pairs), highlights: %{}}
+          end)
 
-      {:ok, results}
+        {:ok, results}
+
+      {:error, _} = error ->
+        error
     end
   end
 
   defp search_with_snippets(reader_ref, query_ref, limit, offset, snippet_fields) do
-    with {:ok, raw_results} <-
-           SearchTantivy.Native.search_with_snippets(
-             reader_ref,
-             query_ref,
-             limit,
-             offset,
-             snippet_fields
-           ) do
-      results =
-        Enum.map(raw_results, fn {score, field_pairs, snippet_pairs} ->
-          %{
-            score: score,
-            doc: Map.new(field_pairs),
-            highlights: atomize_keys(snippet_pairs)
-          }
-        end)
+    case SearchTantivy.Native.search_with_snippets(
+           reader_ref,
+           query_ref,
+           limit,
+           offset,
+           snippet_fields
+         ) do
+      {:ok, raw_results} ->
+        results =
+          Enum.map(raw_results, fn {score, field_pairs, snippet_pairs} ->
+            %{
+              score: score,
+              doc: Map.new(field_pairs),
+              highlights: atomize_keys(snippet_pairs)
+            }
+          end)
 
-      {:ok, results}
+        {:ok, results}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -146,8 +154,9 @@ defmodule SearchTantivy.Searcher do
   defp resolve(index), do: index
 
   defp build_boolean_from_clauses(index_ref, clauses, fields) do
-    with {:ok, parsed} <- parse_clauses(index_ref, clauses, fields) do
-      SearchTantivy.Query.boolean_query(parsed)
+    case parse_clauses(index_ref, clauses, fields) do
+      {:ok, parsed} -> SearchTantivy.Query.boolean_query(parsed)
+      {:error, _} = error -> error
     end
   end
 

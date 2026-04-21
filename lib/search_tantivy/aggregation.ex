@@ -108,9 +108,13 @@ defmodule SearchTantivy.Aggregation do
         SearchTantivy.Query.all_query()
 
       query_string when is_binary(query_string) ->
-        with {:ok, index_ref} <- SearchTantivy.Index.index_ref(via) do
-          fields = Keyword.get(opts, :fields, [])
-          SearchTantivy.Query.parse(index_ref, query_string, fields)
+        case SearchTantivy.Index.index_ref(via) do
+          {:ok, index_ref} ->
+            fields = Keyword.get(opts, :fields, [])
+            SearchTantivy.Query.parse(index_ref, query_string, fields)
+
+          {:error, _} = error ->
+            error
         end
     end
   end
@@ -212,8 +216,10 @@ defmodule SearchTantivy.Aggregation do
         Map.new(range, fn {k, v} -> {to_string(k), v} end)
       end)
 
-    %{"range" => %{"field" => to_string(field), "ranges" => range_maps}}
-    |> maybe_add_sub_aggs(Keyword.get(opts, :aggs))
+    maybe_add_sub_aggs(
+      %{"range" => %{"field" => to_string(field), "ranges" => range_maps}},
+      Keyword.get(opts, :aggs)
+    )
   end
 
   @doc """
@@ -230,13 +236,15 @@ defmodule SearchTantivy.Aggregation do
   """
   @spec date_histogram(atom(), String.t(), keyword()) :: map()
   def date_histogram(field, interval, opts \\ []) do
-    %{
-      "date_histogram" => %{
-        "field" => to_string(field),
-        "fixed_interval" => interval
-      }
-    }
-    |> maybe_add_sub_aggs(Keyword.get(opts, :aggs))
+    maybe_add_sub_aggs(
+      %{
+        "date_histogram" => %{
+          "field" => to_string(field),
+          "fixed_interval" => interval
+        }
+      },
+      Keyword.get(opts, :aggs)
+    )
   end
 
   # --- Metric Aggregations ---

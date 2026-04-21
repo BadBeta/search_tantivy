@@ -22,6 +22,8 @@ defmodule SearchTantivy.Index do
   """
   use GenServer
 
+  import SearchTantivy.Call, only: [safe_call: 2, safe_call: 3]
+
   require Logger
 
   @type t :: GenServer.server()
@@ -71,7 +73,7 @@ defmodule SearchTantivy.Index do
   """
   @spec add_documents(t(), [map()], timeout()) :: :ok | {:error, term()}
   def add_documents(index, documents, timeout \\ 30_000) when is_list(documents) do
-    GenServer.call(index, {:add_documents, documents}, timeout)
+    safe_call(index, {:add_documents, documents}, timeout)
   end
 
   @doc """
@@ -88,8 +90,9 @@ defmodule SearchTantivy.Index do
   """
   @spec add_and_commit(t(), [map()], timeout()) :: :ok | {:error, term()}
   def add_and_commit(index, documents, timeout \\ 30_000) when is_list(documents) do
-    with :ok <- add_documents(index, documents, timeout) do
-      commit(index)
+    case add_documents(index, documents, timeout) do
+      :ok -> commit(index)
+      {:error, _} = error -> error
     end
   end
 
@@ -98,7 +101,7 @@ defmodule SearchTantivy.Index do
   """
   @spec delete_documents(t(), atom(), term()) :: :ok | {:error, term()}
   def delete_documents(index, field, value) when is_atom(field) do
-    GenServer.call(index, {:delete_documents, field, value})
+    safe_call(index, {:delete_documents, field, value})
   end
 
   @doc """
@@ -109,7 +112,7 @@ defmodule SearchTantivy.Index do
   """
   @spec commit(t()) :: :ok | {:error, term()}
   def commit(index) do
-    GenServer.call(index, :commit, 30_000)
+    safe_call(index, :commit, 30_000)
   end
 
   @doc """
@@ -120,7 +123,7 @@ defmodule SearchTantivy.Index do
   """
   @spec reader(t()) :: {:ok, reference()} | {:error, term()}
   def reader(index) do
-    GenServer.call(index, :reader)
+    safe_call(index, :reader)
   end
 
   @doc """
@@ -128,7 +131,7 @@ defmodule SearchTantivy.Index do
   """
   @spec index_ref(t()) :: {:ok, reference()} | {:error, term()}
   def index_ref(index) do
-    GenServer.call(index, :index_ref)
+    safe_call(index, :index_ref)
   end
 
   @doc """
@@ -136,7 +139,7 @@ defmodule SearchTantivy.Index do
   """
   @spec schema_ref(t()) :: {:ok, reference()} | {:error, term()}
   def schema_ref(index) do
-    GenServer.call(index, :schema_ref)
+    safe_call(index, :schema_ref)
   end
 
   @doc """

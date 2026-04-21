@@ -90,8 +90,9 @@ defmodule SearchTantivy.Schema do
   """
   @spec build([field_def()]) :: {:ok, t()} | {:error, String.t()}
   def build(fields) when is_list(fields) do
-    with {:ok, normalized} <- normalize_fields(fields) do
-      SearchTantivy.Native.schema_build(normalized)
+    case normalize_fields(fields) do
+      {:ok, normalized} -> SearchTantivy.Native.schema_build(normalized)
+      {:error, _} = error -> error
     end
   end
 
@@ -176,8 +177,9 @@ defmodule SearchTantivy.Schema do
 
   defp normalize_field({name, type, opts})
        when is_atom(name) and type in @valid_types and is_list(opts) do
-    with {:ok, normalized_opts} <- normalize_opts(opts) do
-      {:ok, {Atom.to_string(name), Atom.to_string(type), normalized_opts}}
+    case normalize_opts(opts) do
+      {:ok, normalized_opts} -> {:ok, {Atom.to_string(name), Atom.to_string(type), normalized_opts}}
+      {:error, _} = error -> error
     end
   end
 

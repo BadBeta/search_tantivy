@@ -111,8 +111,9 @@ defmodule SearchTantivy.Ecto do
     via = SearchTantivy.IndexRegistry.via(index_name)
     doc = to_document(record, fields)
 
-    with :ok <- SearchTantivy.Index.add_documents(via, [doc]) do
-      SearchTantivy.Index.commit(via)
+    case SearchTantivy.Index.add_documents(via, [doc]) do
+      :ok -> SearchTantivy.Index.commit(via)
+      {:error, _} = error -> error
     end
   end
 
@@ -135,8 +136,9 @@ defmodule SearchTantivy.Ecto do
     via = SearchTantivy.IndexRegistry.via(index_name)
     docs = to_documents(records, fields)
 
-    with :ok <- SearchTantivy.Index.add_documents(via, docs) do
-      SearchTantivy.Index.commit(via)
+    case SearchTantivy.Index.add_documents(via, docs) do
+      :ok -> SearchTantivy.Index.commit(via)
+      {:error, _} = error -> error
     end
   end
 
@@ -177,8 +179,9 @@ defmodule SearchTantivy.Ecto do
   def delete_one(index_name, field, value) do
     via = SearchTantivy.IndexRegistry.via(index_name)
 
-    with :ok <- SearchTantivy.Index.delete_documents(via, field, value) do
-      SearchTantivy.Index.commit(via)
+    case SearchTantivy.Index.delete_documents(via, field, value) do
+      :ok -> SearchTantivy.Index.commit(via)
+      {:error, _} = error -> error
     end
   end
 
