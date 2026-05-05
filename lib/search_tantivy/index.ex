@@ -230,6 +230,12 @@ defmodule SearchTantivy.Index do
     {:reply, {:ok, state.schema_ref}, state}
   end
 
+  # §§ elixir-reviewing 6.27 — catch unknown calls instead of raising
+  def handle_call(msg, _from, state) do
+    Logger.warning("SearchTantivy.Index received unexpected call: #{inspect(msg)}")
+    {:reply, {:error, :unknown_call}, state}
+  end
+
   @impl true
   def handle_info(msg, state) do
     Logger.warning("SearchTantivy.Index received unexpected message: #{inspect(msg)}")

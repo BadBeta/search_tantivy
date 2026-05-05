@@ -15,7 +15,7 @@ impl std::panic::RefUnwindSafe for DocumentResource {}
 impl rustler::Resource for DocumentResource {}
 
 /// Create a document from a schema and field-value pairs.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn document_create(
     schema_res: ResourceArc<SchemaResource>,
     field_values: Vec<(String, String)>,

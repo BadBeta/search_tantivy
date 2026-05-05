@@ -47,7 +47,7 @@ fn index_create(
 }
 
 /// Create a new in-memory (RAM) index.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn index_create_in_ram(
     schema_res: ResourceArc<SchemaResource>,
 ) -> Result<ResourceArc<IndexResource>, String> {
@@ -69,7 +69,7 @@ fn index_open(path: String) -> Result<ResourceArc<IndexResource>, String> {
 }
 
 /// Create a new IndexWriter with the given memory budget.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn index_writer_new(
     index_res: ResourceArc<IndexResource>,
     memory_budget: usize,
@@ -87,7 +87,7 @@ fn index_writer_new(
 }
 
 /// Create a new IndexReader from an index.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyIo")]
 fn index_reader(
     index_res: ResourceArc<IndexResource>,
 ) -> Result<ResourceArc<ReaderResource>, String> {
@@ -105,7 +105,7 @@ fn index_reader(
 }
 
 /// Add a document to the writer.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn writer_add_document(
     writer_res: ResourceArc<WriterResource>,
     doc_res: ResourceArc<crate::document::DocumentResource>,
@@ -125,7 +125,7 @@ fn writer_add_document(
 }
 
 /// Delete documents matching a term.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn writer_delete_documents(
     writer_res: ResourceArc<WriterResource>,
     field_name: String,

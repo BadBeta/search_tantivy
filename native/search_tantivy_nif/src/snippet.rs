@@ -75,7 +75,7 @@ fn search_with_snippets_internal(
 ///
 /// Supports language-specific analyzers (e.g., "en_stem", "fr_stem", "de_stem")
 /// and basic tokenizers ("default", "raw", "whitespace").
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn tokenizer_register(
     index_res: ResourceArc<crate::index::IndexResource>,
     tokenizer_name: String,

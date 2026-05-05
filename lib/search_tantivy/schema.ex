@@ -178,8 +178,11 @@ defmodule SearchTantivy.Schema do
   defp normalize_field({name, type, opts})
        when is_atom(name) and type in @valid_types and is_list(opts) do
     case normalize_opts(opts) do
-      {:ok, normalized_opts} -> {:ok, {Atom.to_string(name), Atom.to_string(type), normalized_opts}}
-      {:error, _} = error -> error
+      {:ok, normalized_opts} ->
+        {:ok, {Atom.to_string(name), Atom.to_string(type), normalized_opts}}
+
+      {:error, _} = error ->
+        error
     end
   end
 

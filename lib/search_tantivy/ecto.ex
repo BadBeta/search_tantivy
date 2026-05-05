@@ -145,16 +145,30 @@ defmodule SearchTantivy.Ecto do
   @doc """
   Builds a SearchTantivy schema from a field mapping list.
 
-  Passes the field mapping directly to `SearchTantivy.Schema.build!/1`.
-  This lets you use the same `@search_fields` module attribute for
-  both schema creation and document conversion.
+  Returns `{:ok, schema}` on success or `{:error, reason}` when a field
+  definition is malformed.
 
   ## Examples
 
-      @search_fields [
-        {:title, :text, stored: true},
-        {:body, :text, stored: true}
-      ]
+      {:ok, schema} = SearchTantivy.Ecto.build_schema(@search_fields)
+      {:ok, _index} = SearchTantivy.create_index(:blog, schema)
+
+  """
+  @spec build_schema([field_mapping()]) ::
+          {:ok, SearchTantivy.Schema.t()} | {:error, String.t()}
+  def build_schema(fields) when is_list(fields) do
+    # §§ rust-planning §15.6 — typed-error discipline at module boundary
+    SearchTantivy.Schema.build(fields)
+  end
+
+  @doc """
+  Builds a SearchTantivy schema from a field mapping list, raising on error.
+
+  Same as `build_schema/1` but raises `ArgumentError` on failure. Use when
+  the schema is built from a compile-time module attribute and a malformed
+  definition is a programmer error.
+
+  ## Examples
 
       schema = SearchTantivy.Ecto.build_schema!(@search_fields)
       {:ok, _index} = SearchTantivy.create_index(:blog, schema)

@@ -91,6 +91,10 @@ defmodule SearchTantivy.Searcher do
     end
   end
 
+  # §§ elixir-reviewing 6.27 — public API must not raise FunctionClauseError on
+  # unsupported shapes. Reachable on empty lists or non-{string,reference,list} queries.
+  def search(_index, _query, _opts), do: {:error, :invalid_query}
+
   defp execute_search(reader_ref, query_ref, opts) do
     dispatch_search(reader_ref, query_ref, opts[:limit], opts[:offset], opts[:highlight])
   end

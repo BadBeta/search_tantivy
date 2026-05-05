@@ -73,6 +73,25 @@ defmodule SearchTantivy.EctoTest do
       schema = SearchTantivy.Ecto.build_schema!(@search_fields)
       assert is_reference(schema)
     end
+
+    test "raises ArgumentError on invalid field type" do
+      assert_raise ArgumentError, fn ->
+        SearchTantivy.Ecto.build_schema!([{:bad, :nonexistent}])
+      end
+    end
+  end
+
+  describe "build_schema/1" do
+    test "returns {:ok, schema} on valid mappings" do
+      assert {:ok, schema} = SearchTantivy.Ecto.build_schema(@search_fields)
+      assert is_reference(schema)
+    end
+
+    test "returns {:error, reason} on invalid field type" do
+      assert {:error, reason} = SearchTantivy.Ecto.build_schema([{:bad, :nonexistent}])
+      assert is_binary(reason)
+      assert reason =~ "invalid field type"
+    end
   end
 
   describe "index_one/3 and index_all/3" do

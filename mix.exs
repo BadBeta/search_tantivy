@@ -32,7 +32,8 @@ defmodule SearchTantivy.MixProject do
       {:jason, "~> 1.4"},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:archdo, path: "../Archdo", only: [:dev, :test], runtime: false}
     ]
   end
 

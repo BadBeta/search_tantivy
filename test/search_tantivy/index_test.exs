@@ -32,6 +32,16 @@ defmodule SearchTantivy.IndexTest do
     end
   end
 
+  describe "handle_call/3 catch-all" do
+    test "returns {:error, :unknown_call} for an unknown message", %{schema: schema, name: name} do
+      {:ok, pid} = SearchTantivy.Index.create(name, schema)
+
+      assert {:error, :unknown_call} = GenServer.call(pid, :totally_unknown_message)
+
+      SearchTantivy.Index.close(pid)
+    end
+  end
+
   describe "add_documents/2 and commit/1" do
     test "adds and commits documents", %{schema: schema, name: name} do
       {:ok, index} = SearchTantivy.Index.create(name, schema)

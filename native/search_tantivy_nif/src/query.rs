@@ -21,7 +21,7 @@ impl std::panic::RefUnwindSafe for QueryResource {}
 impl rustler::Resource for QueryResource {}
 
 /// Parse a query string.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn query_parse(
     index_res: ResourceArc<IndexResource>,
     query_string: String,
@@ -79,7 +79,7 @@ fn query_boost(
 }
 
 /// Create a fuzzy term query for approximate matching.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn query_fuzzy_term(
     index_res: ResourceArc<IndexResource>,
     field_name: String,
@@ -94,7 +94,7 @@ fn query_fuzzy_term(
 }
 
 /// Create a phrase query for exact phrase matching on a specific field.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn query_phrase(
     index_res: ResourceArc<IndexResource>,
     field_name: String,
@@ -106,7 +106,7 @@ fn query_phrase(
 }
 
 /// Create a phrase prefix query (autocomplete-style matching).
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn query_phrase_prefix(
     index_res: ResourceArc<IndexResource>,
     field_name: String,
@@ -118,7 +118,7 @@ fn query_phrase_prefix(
 }
 
 /// Create a regex query for pattern matching on a specific field.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 fn query_regex(
     index_res: ResourceArc<IndexResource>,
     field_name: String,

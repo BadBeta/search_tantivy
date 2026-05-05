@@ -64,6 +64,28 @@ defmodule SearchTantivy.Aggregation do
 
   """
 
+  @typedoc """
+  A single aggregation definition. The outer key names the aggregation
+  type (`"terms"`, `"histogram"`, `"avg"`, …); the value is its config
+  map (field name, size, intervals, etc.).
+  """
+  @type aggregation_def :: %{required(String.t()) => map()}
+
+  @typedoc """
+  Map of named aggregations passed to `aggregate/3` / `search/3`. The
+  keys are user-chosen labels (e.g. `"by_category"`) that appear in the
+  result; values are aggregation definitions built with the helpers in
+  this module.
+  """
+  @type aggregation_defs :: %{optional(String.t()) => aggregation_def()}
+
+  @typedoc """
+  Decoded JSON result of running aggregations. Keys mirror the input
+  labels; values follow the Elasticsearch convention (bucket lists for
+  group-bys, scalars for metrics).
+  """
+  @type aggregation_result :: %{optional(String.t()) => map() | list()}
+
   @doc """
   Run aggregations on a named index.
 
@@ -91,7 +113,8 @@ defmodule SearchTantivy.Aggregation do
       }, query: "laptop")
 
   """
-  @spec aggregate(atom(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  @spec aggregate(atom(), aggregation_defs(), keyword()) ::
+          {:ok, aggregation_result()} | {:error, term()}
   def aggregate(index_name, aggregations, opts \\ [])
       when is_atom(index_name) and is_map(aggregations) do
     via = SearchTantivy.IndexRegistry.via(index_name)
@@ -132,7 +155,8 @@ defmodule SearchTantivy.Aggregation do
       })
 
   """
-  @spec search(reference(), reference(), map()) :: {:ok, map()} | {:error, String.t()}
+  @spec search(reference(), reference(), aggregation_defs()) ::
+          {:ok, aggregation_result()} | {:error, String.t()}
   def search(reader, query, aggregations) when is_map(aggregations) do
     json = Jason.encode!(aggregations)
 
@@ -158,7 +182,7 @@ defmodule SearchTantivy.Aggregation do
       SearchTantivy.Aggregation.terms(:category, size: 20)
 
   """
-  @spec terms(atom(), keyword()) :: map()
+  @spec terms(atom(), keyword()) :: aggregation_def()
   def terms(field, opts \\ []) do
     size = Keyword.get(opts, :size, 10)
     sub_aggs = Keyword.get(opts, :aggs)
@@ -183,7 +207,7 @@ defmodule SearchTantivy.Aggregation do
       SearchTantivy.Aggregation.histogram(:price, 50.0)
 
   """
-  @spec histogram(atom(), number(), keyword()) :: map()
+  @spec histogram(atom(), number(), keyword()) :: aggregation_def()
   def histogram(field, interval, opts \\ []) do
     %{"field" => to_string(field), "interval" => interval}
     |> maybe_add_min_doc_count(Keyword.get(opts, :min_doc_count))
@@ -209,7 +233,7 @@ defmodule SearchTantivy.Aggregation do
       ])
 
   """
-  @spec range(atom(), [map()], keyword()) :: map()
+  @spec range(atom(), [map()], keyword()) :: aggregation_def()
   def range(field, ranges, opts \\ []) when is_list(ranges) do
     range_maps =
       Enum.map(ranges, fn range ->
@@ -234,7 +258,7 @@ defmodule SearchTantivy.Aggregation do
       SearchTantivy.Aggregation.date_histogram(:timestamp, "1d")
 
   """
-  @spec date_histogram(atom(), String.t(), keyword()) :: map()
+  @spec date_histogram(atom(), String.t(), keyword()) :: aggregation_def()
   def date_histogram(field, interval, opts \\ []) do
     maybe_add_sub_aggs(
       %{
@@ -250,29 +274,29 @@ defmodule SearchTantivy.Aggregation do
   # --- Metric Aggregations ---
 
   @doc "Average value of a numeric field."
-  @spec avg(atom()) :: map()
+  @spec avg(atom()) :: aggregation_def()
   def avg(field), do: %{"avg" => %{"field" => to_string(field)}}
 
   @doc "Minimum value of a numeric field."
-  @spec min(atom()) :: map()
+  @spec min(atom()) :: aggregation_def()
   def min(field), do: %{"min" => %{"field" => to_string(field)}}
 
   @doc "Maximum value of a numeric field."
-  @spec max(atom()) :: map()
+  @spec max(atom()) :: aggregation_def()
   def max(field), do: %{"max" => %{"field" => to_string(field)}}
 
   @doc "Sum of a numeric field."
-  @spec sum(atom()) :: map()
+  @spec sum(atom()) :: aggregation_def()
   def sum(field), do: %{"sum" => %{"field" => to_string(field)}}
 
   @doc "Count of documents (uses value_count)."
-  @spec count(atom()) :: map()
+  @spec count(atom()) :: aggregation_def()
   def count(field), do: %{"value_count" => %{"field" => to_string(field)}}
 
   @doc """
   Statistical summary: count, min, max, avg, sum.
   """
-  @spec stats(atom()) :: map()
+  @spec stats(atom()) :: aggregation_def()
   def stats(field), do: %{"stats" => %{"field" => to_string(field)}}
 
   @doc """
@@ -283,7 +307,7 @@ defmodule SearchTantivy.Aggregation do
       SearchTantivy.Aggregation.percentiles(:response_time, [25.0, 50.0, 75.0, 95.0, 99.0])
 
   """
-  @spec percentiles(atom(), [float()]) :: map()
+  @spec percentiles(atom(), [float()]) :: aggregation_def()
   def percentiles(field, percents \\ [1.0, 5.0, 25.0, 50.0, 75.0, 95.0, 99.0]) do
     %{"percentiles" => %{"field" => to_string(field), "percents" => percents}}
   end
